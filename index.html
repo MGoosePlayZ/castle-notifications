@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Castle Notifications</title>
+<style>
+:root{color-scheme:dark;--g:#888;--line:#88888850}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#000;color:#fff;font:15px/1.4 -apple-system,"Inter","Segoe UI",Roboto,system-ui,sans-serif}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.hide{display:none!important}
+.mut{color:var(--g)}
+input{width:100%;background:#000;border:1px solid var(--g);border-radius:10px;padding:12px 14px;outline:0}
+input:focus{border-color:#fff}
+input::placeholder{color:var(--g)}
+.btn{background:#fff;color:#000;border:0;border-radius:10px;padding:12px 18px;font-weight:700;width:100%}
+.btn:disabled{opacity:.5}
+.ico{background:none;border:0;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;padding:0}
+.ico:active{background:var(--line)}
+.ico svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* sign in */
+#login{min-height:100vh;min-height:100dvh;max-width:360px;margin:auto;padding:24px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+#login h1{font-size:28px;margin:0 0 4px;letter-spacing:-.5px}
+#login p{margin:0 0 12px}
+#lerr,#warn{color:#ff5a5a;font-size:13px;min-height:18px}
+/* app */
+header{position:sticky;top:0;z-index:5;background:#000;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line)}
+.wrap{max-width:720px;margin:auto}
+.top{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+.top h1{font-size:20px;margin:0;flex:1}
+.sr{position:relative}
+.sr input{padding-right:40px}
+#qx{position:absolute;right:2px;top:2px;width:40px;height:40px;background:none;border:0;color:var(--g);font-size:20px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;background:#000;border:1px solid var(--g);border-radius:99px;padding:5px 12px;font-size:13px;white-space:nowrap}
+.chip.on{background:#fff;color:#000;border-color:#fff;font-weight:600}
+.chip small{color:var(--g);margin-left:4px}.chip.on small{color:#000}
+.chip.x{border-style:dashed;color:var(--g)}
+#status{font-size:12px;color:var(--g);padding:4px 0 0;display:flex;justify-content:space-between}
+main{max-width:720px;margin:auto;padding:0 14px calc(40px + env(safe-area-inset-bottom))}
+.it{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.av{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--g);display:grid;place-items:center;overflow:hidden;color:var(--g);font-weight:700}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av svg{width:20px;height:20px;stroke:var(--g);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bd{flex:1;min-width:0}
+.tp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--g);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:#fff}
+.msg{margin-top:2px;overflow-wrap:anywhere}
+.msg b{font-weight:700}
+.empty{text-align:center;color:var(--g);padding:60px 0}
+/* menu */
+#menu{position:absolute;right:10px;top:calc(52px + env(safe-area-inset-top));background:#000;border:1px solid var(--g);border-radius:12px;min-width:210px;padding:6px;z-index:9}
+#menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:8px}
+#menu button:active{background:var(--line)}
+#menu .bad{color:#ff5a5a}
+</style>
+</head>
+<body>
+
+<section id="login" class="hide">
+  <h1>Castle Notifications</h1>
+  <p class="mut">Sign in with your Castle account to search your notifications.</p>
+  <input id="user" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+  <input id="pass" type="password" placeholder="Password" autocomplete="current-password">
+  <div id="lerr"></div>
+  <button class="btn" id="signin">Sign in</button>
+</section>
+
+<section id="app" class="hide">
+  <header>
+    <div class="wrap">
+      <div class="top">
+        <h1>Notifications</h1>
+        <button class="ico" id="refresh" aria-label="Refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button class="ico" id="more" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+      </div>
+      <div class="sr"><input id="q" type="search" placeholder="Search notifications" autocomplete="off"><button id="qx" class="hide" aria-label="Clear search">&times;</button></div>
+      <div class="chips" id="chips"></div>
+      <div id="status"><span id="st"></span><span id="count"></span></div>
+    </div>
+  </header>
+  <div id="menu" class="hide">
+    <button id="exp">Export as JSON</button>
+    <button id="resync">Re-sync everything</button>
+    <button id="out">Sign out</button>
+    <button id="clr" class="bad">Delete saved data</button>
+  </div>
+  <main><div id="list"></div><div id="sentinel"></div></main>
+</section>
+
+<script>
+const $=id=>document.getElementById(id);
+const ENDPOINT='https://api.castle.xyz/graphql',HEADER='X-Auth-Token';
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+let token=store.get('cn_token')||'',ALL=[],matches=[],shown=0,syncing=false;
+const F={q:'',types:new Set(),unseen:false};
+const USERS=new Map(),tried=new Set();
+
+/* ---------- storage ---------- */
+const dbp=new Promise((ok,bad)=>{
+  const r=indexedDB.open('castle-notifications',2);
+  r.onupgradeneeded=()=>{const d=r.result;
+    ['notifications:id','meta:k','users:id'].forEach(s=>{const[n,k]=s.split(':');if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:k})})};
+  r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error);
+});
+const tx=async(store,mode,fn)=>{const d=await dbp;return new Promise((ok,bad)=>{const t=d.transaction(store,mode);let out;fn(t.objectStore(store),v=>out=v);t.oncomplete=()=>ok(out);t.onerror=()=>bad(t.error)})};
+const getAll=n=>tx(n,'readonly',(s,o)=>{const r=s.getAll();r.onsuccess=()=>o(r.result)});
+const putMany=(n,recs)=>tx(n,'readwrite',s=>recs.forEach(r=>s.put(r)));
+const clearStore=n=>tx(n,'readwrite',s=>s.clear());
+const setMeta=(k,v)=>tx('meta','readwrite',s=>s.put({k,v}));
+const getMeta=k=>tx('meta','readonly',(s,o)=>{const r=s.get(k);r.onsuccess=()=>o(r.result&&r.result.v)});
+async function wipe(){await Promise.all(['notifications','users','meta'].map(clearStore));ALL=[];USERS.clear();tried.clear()}
+
+/* ---------- API ---------- */
+async function gql(query,variables){
+  const h={'Content-Type':'application/json'};
+  if(token)h[HEADER]=token;
+  const r=await fetch(ENDPOINT,{method:'POST',headers:h,body:JSON.stringify({query,variables})});
+  const txt=await r.text();
+  try{return JSON.parse(txt)}catch(e){throw new Error('Server error ('+r.status+')')}
+}
+const authErr=m=>/auth|token|log ?in|unauthor|permission|not signed/i.test(m||'');
+
+/* ---------- sign in / out ---------- */
+function show(view){$('login').classList.toggle('hide',view!=='login');$('app').classList.toggle('hide',view!=='app')}
+async function signIn(){
+  const u=$('user').value.trim(),p=$('pass').value;
+  if(!u||!p){$('lerr').textContent='Enter your username and password.';return}
+  $('signin').disabled=true;$('lerr').textContent='';
+  try{
+    const a=await gql('query($u:String!){userForLoginInput(who:$u){userId}}',{u});
+    const uid=a.data&&a.data.userForLoginInput&&a.data.userForLoginInput.userId;
+    if(!uid)throw new Error('Account not found.');
+    const b=await gql('mutation($userId:ID!,$password:String!){login(userId:$userId,password:$password){userId token}}',{userId:uid,password:p});
+    const L=b.data&&b.data.login;
+    if(!L||!L.token)throw new Error('Wrong username or password.');
+    if(String(await getMeta('uid'))!==String(L.userId))await wipe();
+    token=L.token;store.set('cn_token',token);await setMeta('uid',L.userId);
+    $('pass').value='';startApp();
+  }catch(e){$('lerr').textContent=e.message.startsWith('Server')?'Could not reach Castle. Try again.':e.message}
+  $('signin').disabled=false;
+}
+async function signOut(msg){
+  token='';store.del('cn_token');await wipe();
+  $('lerr').textContent=msg||'';show('login');
+}
+$('signin').onclick=signIn;
+$('pass').onkeydown=$('user').onkeydown=e=>{if(e.key==='Enter')signIn()};
+
+/* ---------- records ---------- */
+function walk(o,cb,key=''){if(o==null)return;if(typeof o==='object'){for(const k in o)walk(o[k],cb,k)}else cb(key,o)}
+const label=t=>t?String(t).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Other';
+function makeRec(raw){
+  if(raw.notificationId==null)throw new Error('Unexpected response from Castle.');
+  const parts=[];
+  walk(raw,(k,v)=>{if(k!=='notificationId'&&k!=='__typename'&&k!=='userId')parts.push(String(v))});
+  const type=String(raw.type||'');
+  return{id:String(raw.notificationId),type,status:raw.status||'',s:(parts.join(' ')+' '+type+' '+label(type)).toLowerCase(),raw};
+}
+const msgParts=r=>{const m=r.raw.body&&r.raw.body.message;return Array.isArray(m)?m:[]};
+const uidOf=r=>{const p=msgParts(r).find(p=>p&&p.userId);return p?String(p.userId):''};
+
+/* ---------- sync ---------- */
+const SEL='__typename notificationId type status body';
+async function fetchPage(before){
+  const r=await gql(`query($beforeId: ID){ notificationsV3(limit: 64, beforeId: $beforeId){ notifications{ ${SEL} } } }`,{beforeId:before});
+  if(!r.data||!r.data.notificationsV3){
+    const m=(r.errors&&r.errors[0]&&r.errors[0].message)||'';
+    const e=new Error(m||'Could not load notifications.');e.auth=authErr(m);throw e;
+  }
+  return r.data.notificationsV3.notifications||[];
+}
+function setStatus(t){$('st').textContent=t}
+async function sync(full){
+  if(syncing||!token)return;
+  syncing=true;setStatus('Syncing…');
+  const known=new Set(ALL.map(r=>r.id));
+  const base=Math.floor(Date.now()/1000)*1e6;let n=0,before=null,last,pages=0;
+  try{
+    while(true){
+      const list=await fetchPage(before);
+      if(!list.length)break;
+      const recs=list.map(makeRec);
+      const fresh=recs.filter(r=>!known.has(r.id));
+      fresh.forEach(r=>{known.add(r.id);r.seq=base-n++});
+      if(fresh.length)await putMany('notifications',fresh);
+      pages++;setStatus(`Syncing… ${known.size} found`);
+      if(pages===1)await reload();
+      if(!full&&!fresh.length)break;
+      before=recs[recs.length-1].id;
+      if(before===last)break;last=before;
+      await delay(200);
+    }
+    await setMeta('lastSync',Date.now());
+    setStatus('Up to date');
+  }catch(e){
+    if(e.auth){syncing=false;return signOut('Your session expired. Sign in again.')}
+    setStatus(navigator.onLine?e.message:'Offline – showing saved notifications');
+  }
+  syncing=false;await reload();
+}
+
+/* ---------- profile pictures ---------- */
+const PHOTO=['photo{url}','photo{smallUrl}','photoUrl'];let pIdx=0;
+const photoOf=u=>{if(!u)return'';const p=u.photo;return(p&&(p.url||p.smallUrl))||(typeof u.photoUrl==='string'?u.photoUrl:'')||''};
+async function loadUsers(){
+  const ids=[...new Set(ALL.map(uidOf).filter(Boolean))].filter(i=>!USERS.has(i)&&!tried.has(i));
+  for(let i=0;i<ids.length&&token;i+=20){
+    const chunk=ids.slice(i,i+20);
+    let d=null;
+    for(;pIdx<PHOTO.length;){
+      const q='{'+chunk.map((id,j)=>`u${j}: user(userId: ${JSON.stringify(id)}){ userId username ${PHOTO[pIdx]} }`).join(' ')+'}';
+      try{const r=await gql(q);if(r.data){d=r.data;break}if(!/Cannot query field/.test(JSON.stringify(r.errors||'')))break;pIdx++}catch(e){break}
+    }
+    chunk.forEach(id=>tried.add(id));
+    if(!d)continue;
+    const recs=[];
+    chunk.forEach((id,j)=>{const u=d['u'+j];if(u){const rec={id,username:u.username||'',url:photoOf(u)};USERS.set(id,rec);recs.push(rec)}});
+    if(recs.length)putMany('users',recs);
+    paint();
+  }
+}
+function paint(){
+  document.querySelectorAll('.av[data-uid]:not([data-done])').forEach(el=>{
+    const u=USERS.get(el.dataset.uid);if(!u||!u.url)return;
+    el.dataset.done=1;
+    const img=new Image();img.alt='';img.loading='lazy';
+    img.onload=()=>{el.textContent='';el.appendChild(img)};img.src=u.url;
+  });
+}
+
+/* ---------- filtering + list ---------- */
+const BELL='<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+async function reload(){
+  ALL=await getAll('notifications');
+  ALL.sort((a,b)=>(b.seq??-1)-(a.seq??-1));
+  if(!USERS.size){(await getAll('users')).forEach(u=>USERS.set(u.id,u))}
+  chips();filter();loadUsers();
+}
+function chips(){
+  const c={};ALL.forEach(r=>c[r.type]=(c[r.type]||0)+1);
+  const types=Object.keys(c).sort((a,b)=>c[b]-c[a]);
+  let h=`<button class="chip${F.unseen?' on':''}" data-u="1">Unseen</button>`;
+  h+=types.map(t=>`<button class="chip${F.types.has(t)?' on':''}" data-t="${esc(t)}">${esc(label(t))}<small>${c[t]}</small></button>`).join('');
+  if(F.types.size||F.unseen||F.q)h+='<button class="chip x" data-x="1">Clear filters</button>';
+  $('chips').innerHTML=h;
+}
+$('chips').onclick=e=>{
+  const b=e.target.closest('.chip');if(!b)return;
+  if(b.dataset.x){F.types.clear();F.unseen=false;F.q='';$('q').value='';$('qx').classList.add('hide')}
+  else if(b.dataset.u)F.unseen=!F.unseen;
+  else{const t=b.dataset.t;F.types.has(t)?F.types.delete(t):F.types.add(t)}
+  chips();filter();
+};
+$('q').oninput=()=>{F.q=$('q').value;$('qx').classList.toggle('hide',!F.q);chips();filter()};
+$('qx').onclick=()=>{$('q').value='';$('q').oninput();$('q').focus()};
+function filter(){
+  const terms=F.q.toLowerCase().split(/\s+/).filter(Boolean);
+  matches=ALL.filter(r=>{
+    if(F.types.size&&!F.types.has(r.type))return false;
+    if(F.unseen&&r.status==='seen')return false;
+    return terms.every(t=>r.s.includes(t));
+  });
+  $('count').textContent=matches.length===ALL.length?`${ALL.length} total`:`${matches.length} of ${ALL.length}`;
+  $('list').innerHTML='';shown=0;
+  if(!matches.length)$('list').innerHTML=`<div class="empty">${ALL.length?'No notifications match your filters.':(syncing?'Loading…':'No notifications yet.')}</div>`;
+  render();
+}
+function itemHtml(r){
+  const parts=msgParts(r),d=(r.raw.body&&r.raw.body.data)||{},uid=uidOf(r);
+  let msg=parts.map(p=>(p.username?`<b>${esc(p.username)}</b>`:'')+(p.text?esc(p.text):'')).join('');
+  if(!msg.trim()){
+    const t=d.pushTitleAndroid||d.pushTitleIos,m=d.pushMessageAndroid||d.pushMessageIos;
+    msg=(t?`<b>${esc(t)}</b><br>`:'')+esc(m||label(r.type));
+  }
+  const first=(parts.find(p=>p.username)||{}).username;
+  const av=uid?`<span class="av" data-uid="${esc(uid)}">${first?esc(first[0].toUpperCase()):BELL}</span>`:`<span class="av">${BELL}</span>`;
+  return`<div class="it">${av}<div class="bd"><div class="tp">${esc(label(r.type))}${r.status!=='seen'?'<i class="dot" title="Unseen"></i>':''}</div><div class="msg">${msg}</div></div></div>`;
+}
+function render(){
+  const end=Math.min(shown+60,matches.length);let h='';
+  for(;shown<end;shown++)h+=itemHtml(matches[shown]);
+  if(h){$('list').insertAdjacentHTML('beforeend',h);paint()}
+}
+new IntersectionObserver(es=>{if(es[0].isIntersecting&&shown<matches.length)render()},{rootMargin:'600px'}).observe($('sentinel'));
+
+/* ---------- menu ---------- */
+$('more').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('hide')};
+document.addEventListener('click',()=>$('menu').classList.add('hide'));
+$('refresh').onclick=()=>sync(false);
+$('resync').onclick=()=>sync(true);
+$('out').onclick=()=>{if(confirm('Sign out? Saved notifications on this device will be deleted.'))signOut()};
+$('clr').onclick=async()=>{if(confirm('Permanently delete all saved notifications from this device? You can sync them again later.')){await wipe();await reload();sync(true)}};
+$('exp').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({exportedAt:new Date().toISOString(),count:ALL.length,notifications:ALL.map(r=>r.raw)},null,1)],{type:'application/json'}));
+  a.download='castle-notifications-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+};
+
+/* ---------- init ---------- */
+async function startApp(){show('app');await reload();sync(ALL.length===0)}
+(async()=>{token?startApp():show('login')})();
+</script>
+</body>
+</html>
